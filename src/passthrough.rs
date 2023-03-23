@@ -14,7 +14,7 @@ use std::mem;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::io::{FromRawFd, IntoRawFd};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use fernet;
 
 use crate::libc_extras::libc;
@@ -30,7 +30,7 @@ pub struct PassthroughFS {
     pub target: OsString,
 }
 
-const ACCESS_TOKEN: &str = "ya29.a0Ael9sCOhuSL0xHIir8OpMCopbW9piV4FI_WA5YOvFZoIIwLRjL3ClIz4XIYW1suKwofI-lawoFOTRpFz2AoQiCmc6bbzRI88562hZ9vYUVkejj3Lag3uRO0KL7zzYMscwEFltstSkM3c5sGSHMfsnJUcd6-bzl0Y5AaCgYKAS4SARESFQF4udJh17y27BO6-c0mou_c_6nTeQ0169";
+const ACCESS_TOKEN: &str = "ya29.a0AVvZVsqG09mYMuK1-7vbpAoV_JXMv-HEyidpX6fQESGce8dLaZB34qogMXUkCDS0u0TM_nYPoZw87RnZU5yFlLHntzSg3vJaXz8FVHA6EhpI9DsvX5yUG-34bp_cOE2mmScHcCNtZRv6xx0nUjAZQrQWYOIGXstthgaCgYKAd4SARESFQGbdwaIypGwR1NyL5iqDVpGvBmmoA0169";
 
 fn mode_to_filetype(mode: libc::mode_t) -> FileType {
     match mode & libc::S_IFMT {
@@ -226,18 +226,24 @@ impl FilesystemMT for PassthroughFS {
 
     fn getattr(&self, _req: RequestInfo, path: &Path, fh: Option<u64>) -> ResultEntry {
         debug!("getattr: {:?}", path);
-
-        if let Some(fh) = fh {
-            match libc_wrappers::fstat(fh) {
-                Ok(stat) => Ok((TTL, stat_to_fuse(stat))),
-                Err(e) => Err(e)
-            }
-        } else {
-            match self.stat_real(path) {
-                Ok(attr) => Ok((TTL, attr)),
-                Err(e) => Err(e.raw_os_error().unwrap())
-            }
-        }
+        const HELLO_TXT_ATTR: FileAttr = FileAttr {
+            // ino: 33188,
+            size: 108830059313,
+            blocks: 50000,
+            atime: UNIX_EPOCH, // 1970-01-01 00:00:00
+            mtime: UNIX_EPOCH,
+            ctime: UNIX_EPOCH,
+            crtime: UNIX_EPOCH,
+            kind: FileType::RegularFile,
+            perm: 0o644,
+            nlink: 1,
+            uid: 1001,
+            gid: 1002,
+            rdev: 0,
+            flags: 0,
+            // blksize: 512,
+        };
+        Ok((TTL, HELLO_TXT_ATTR))
     }
 
     fn opendir(&self, _req: RequestInfo, path: &Path, _flags: u32) -> ResultOpen {
@@ -319,7 +325,7 @@ impl FilesystemMT for PassthroughFS {
 
         let real = self.real_path(path);
         match libc_wrappers::open(real, flags as libc::c_int) {
-            Ok(fh) => Ok((fh, flags)),
+            Ok(fh) => Ok((0, 0)),
             Err(e) => {
                 error!("open({:?}): {}", path, io::Error::from_raw_os_error(e));
                 Err(e)
