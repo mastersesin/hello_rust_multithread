@@ -226,9 +226,8 @@ impl FilesystemMT for PassthroughFS {
 
     fn getattr(&self, _req: RequestInfo, path: &Path, fh: Option<u64>) -> ResultEntry {
         debug!("getattr: {:?}", path);
-        if path == "/" {
+        if path.as_os_str() == "/" {
             const HELLO_DIR_ATTR: FileAttr = FileAttr {
-                ino: 1,
                 size: 4096,
                 blocks: 0,
                 atime: UNIX_EPOCH, // 1970-01-01 00:00:00
@@ -242,7 +241,6 @@ impl FilesystemMT for PassthroughFS {
                 gid: 20,
                 rdev: 0,
                 flags: 0,
-                blksize: 512,
             };
             Ok((TTL, HELLO_DIR_ATTR))
         } else {
